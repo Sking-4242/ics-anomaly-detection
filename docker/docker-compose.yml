@@ -1,0 +1,14 @@
+services:
+  icsad:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: icsad
+    working_dir: /app
+    volumes:
+      - ..:/app
+    ports:
+      - "8501:8501"
+    command: >
+      bash -lc "poetry install && poetry run streamlit run src/icsad/ui/app_streamlit.py
+      --server.address=0.0.0.0 --server.port=8501"
