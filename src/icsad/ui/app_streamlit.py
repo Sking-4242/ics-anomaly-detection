@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 import json
+import subprocess
+from datetime import datetime
+
 
 import pandas as pd
 import streamlit as st
@@ -338,9 +341,66 @@ def main() -> None:
     # In-page help panel
     _help_panel()
 
-    tab_h, tab_b, tab_if = st.tabs(["Hybrid (Enriched)", "Baseline (Enriched)", "Isolation Forest (Top-50)"])
+    tab_u, tab_h, tab_b, tab_if = st.tabs(["Upload PCAP", "Hybrid (Enriched)", "Baseline (Enriched)", "Isolation Forest (Top-50)"])
 
-    # ---------------- Hybrid Tab ----------------
+    
+    # ---------------- Upload Tab ----------------
+    with tab_u:
+        st.subheader("Upload a PCAP and run the pipeline (Modbus TCP)")
+
+        st.caption("This runs: PCAP → packets → Modbus events → window features → hybrid alerts → evidence enrichment.")
+        up = st.file_uploader("Choose a .pcap or .pcapng file", type=["pcap", "pcapng"])
+
+        colA, colB, colC = st.columns(3)
+        window_s = colA.number_input("Window (seconds)", min_value=1, max_value=60, value=5, step=1)
+        top_k = colB.number_input("Top-K alerts", min_value=5, max_value=500, value=50, step=5)
+        run_btn = colC.button("Run analysis")
+
+        if up is not None and run_btn:
+            ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+            outdir = Path("data/uploads") / ts
+            outdir.mkdir(parents=True, exist_ok=True)
+
+            pcap_path = outdir / up.name
+            pcap_path.write_bytes(up.getbuffer())
+
+            st.write(f"Saved upload to: `{pcap_path}`")
+            st.write(f"Output directory: `{outdir}`")
+
+            cmd = [
+                "poetry", "run", "python", "scripts/run_pipeline_modbus.py",
+                "--pcap", str(pcap_path),
+                "--outdir", str(outdir),
+                "--window", str(int(window_s)),
+                "--topk", str(int(top_k)),
+            ]
+
+            with st.spinner("Running pipeline..."):
+                proc = subprocess.run(cmd, capture_output=True, text=True)
+
+            if proc.returncode != 0:
+                st.error("Pipeline failed.")
+                st.code(proc.stdout + "\n" + proc.stderr)
+            else:
+                st.success("Pipeline completed.")
+                st.code(proc.stdout.strip())
+
+                alerts_path = outdir / f"alerts_hybrid_enriched_{int(window_s)}s.parquet"
+                if not alerts_path.exists():
+                    st.error(f"Expected alerts file not found: {alerts_path}")
+                else:
+                    dfu = pd.read_parquet(alerts_path)
+                    dfu = dfu.loc[:, ~dfu.columns.duplicated()].copy()
+                    if "reasons" in dfu.columns:
+                        dfu["reasons_text"] = dfu["reasons"].apply(lambda x: " | ".join(x) if isinstance(x, list) else str(x))
+
+                    st.subheader("Upload run results")
+                    st.dataframe(dfu.head(200), width="stretch", height=360)
+                    st.download_button("Download results CSV", (outdir / f"alerts_hybrid_enriched_{int(window_s)}s.csv").read_bytes(),
+                                       f"alerts_hybrid_enriched_{int(window_s)}s.csv", "text/csv")
+
+
+# ---------------- Hybrid Tab ----------------
     with tab_h:
         df = _load_parquet(HYBRID_PATH)
         if df.empty:
