@@ -1,0 +1,48 @@
+[tool.poetry]
+name = "icsad"
+version = "0.1.0"
+description = "ICS/SCADA anomaly detection (Modbus TCP + DNP3) with explainability and dashboard"
+authors = ["Seth King"]
+readme = "README.md"
+packages = [{ include = "icsad", from = "src" }]
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.13"
+
+# PCAP + parsing
+scapy = "^2.5.0"
+pyshark = { version = "^0.6", optional = true }
+
+# Data handling
+pandas = "^2.2.2"
+pyarrow = "^17.0.0"
+
+# ML / DL
+numpy = "^2.0.0"
+scikit-learn = "^1.5.1"
+torch = "^2.4.0"
+
+# UI
+streamlit = "^1.37.0"
+
+# Config / logging
+pydantic = "^2.8.2"
+pyyaml = "^6.0.2"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.2"
+pytest-cov = "^5.0.0"
+ruff = "^0.6.2"
+mypy = "^1.11.1"
+
+[tool.poetry.scripts]
+icsad = "icsad.cli:main"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
