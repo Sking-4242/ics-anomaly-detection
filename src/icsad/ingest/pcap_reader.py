@@ -115,3 +115,29 @@ def pcap_to_parquet(pcap_path: str | Path, out_path: str | Path) -> Path:
     records = read_pcap_packets(pcap_path)
     df = to_dataframe(records)
     return write_parquet(df, out_path)
+
+
+def parse_pcap_to_packets(pcap_path: str) -> pd.DataFrame:
+    """
+    Parse a PCAP/PCAPNG into normalized packet records.
+
+    Returns a DataFrame with columns:
+    ts, src_ip, dst_ip, src_port, dst_port, ip_proto, length, payload_hex
+    """
+    # If you already have a lower-level parser function, call it here.
+    # Otherwise, move the existing logic into this function.
+
+    from .pcap_reader import _parse_pcap  # adjust if needed
+
+    return _parse_pcap(pcap_path)
+
+
+def parse_pcap_to_packets(pcap_path: str | Path) -> pd.DataFrame:
+    """
+    Convenience wrapper used by pipelines/UI.
+
+    Returns a normalized packet DataFrame with columns:
+    ts, src_ip, dst_ip, src_port, dst_port, ip_proto, length, payload_hex
+    """
+    records = read_pcap_packets(pcap_path)
+    return to_dataframe(records)
